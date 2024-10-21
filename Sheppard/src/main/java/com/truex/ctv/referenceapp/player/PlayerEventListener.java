@@ -1,4 +1,4 @@
-package com.truex.sheppard.player;
+package com.truex.ctv.referenceapp.player;
 
 import android.util.Log;
 

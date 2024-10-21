@@ -1,4 +1,4 @@
-package com.truex.sheppard.player;
+package com.truex.ctv.referenceapp.player;
 
 public enum DisplayMode {
     CONTENT_STREAM,

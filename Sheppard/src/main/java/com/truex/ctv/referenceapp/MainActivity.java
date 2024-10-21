@@ -30,11 +30,11 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.ui.PlayerView;
 
 import com.truex.sheppard.R;
-import com.truex.sheppard.ads.TruexAdManager;
-import com.truex.sheppard.player.DisplayMode;
-import com.truex.sheppard.player.PlaybackHandler;
-import com.truex.sheppard.player.PlaybackStateListener;
-import com.truex.sheppard.player.PlayerEventListener;
+import com.truex.ctv.referenceapp.ads.TruexAdManager;
+import com.truex.ctv.referenceapp.player.DisplayMode;
+import com.truex.ctv.referenceapp.player.PlaybackHandler;
+import com.truex.ctv.referenceapp.player.PlaybackStateListener;
+import com.truex.ctv.referenceapp.player.PlayerEventListener;
 
 @OptIn(markerClass = UnstableApi.class)
 public class MainActivity extends AppCompatActivity implements PlaybackStateListener, PlaybackHandler {
