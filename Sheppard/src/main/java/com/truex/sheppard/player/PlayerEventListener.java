@@ -2,8 +2,8 @@ package com.truex.sheppard.player;
 
 import android.util.Log;
 
-import com.google.android.exoplayer2.PlaybackException;
-import com.google.android.exoplayer2.Player;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
 
 /**
  * This class simply listens for playback events and informs the listeners when any playback events
