@@ -1,10 +1,12 @@
 package com.truex.sheppard;
 
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -14,6 +16,7 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import androidx.annotation.OptIn;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.media3.common.MediaItem;
@@ -303,9 +306,15 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         dataSourceFactory = new DefaultDataSourceFactory(this, userAgent, null);
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private void setupIntents() {
-        registerReceiver(hdmiStateChange, new IntentFilter(INTENT_HDMI));
-        registerReceiver(audioWillBecomeNoisy, new IntentFilter(INTENT_NOISY_AUDIO));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(hdmiStateChange, new IntentFilter(INTENT_HDMI), RECEIVER_EXPORTED);
+            registerReceiver(audioWillBecomeNoisy, new IntentFilter(INTENT_NOISY_AUDIO), RECEIVER_EXPORTED);
+        } else {
+            registerReceiver(hdmiStateChange, new IntentFilter(INTENT_HDMI));
+            registerReceiver(audioWillBecomeNoisy, new IntentFilter(INTENT_NOISY_AUDIO));
+        }
     }
 
     BroadcastReceiver hdmiStateChange = new BroadcastReceiver() {

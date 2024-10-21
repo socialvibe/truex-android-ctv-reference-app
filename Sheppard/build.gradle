@@ -4,7 +4,7 @@ android {
     compileSdk 34
     defaultConfig {
         applicationId "com.truex.sheppard"
-        minSdkVersion 21
+        minSdkVersion 28
         targetSdkVersion 34
         versionCode 1
         versionName "2.0"
