@@ -1,4 +1,4 @@
-package com.truex.sheppard;
+package com.truex.ctv.referenceapp;
 
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
@@ -16,7 +16,6 @@ import android.view.Window;
 import android.view.WindowManager;
 
 import androidx.annotation.OptIn;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.media3.common.MediaItem;
@@ -30,6 +29,7 @@ import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.ui.PlayerView;
 
+import com.truex.sheppard.R;
 import com.truex.sheppard.ads.TruexAdManager;
 import com.truex.sheppard.player.DisplayMode;
 import com.truex.sheppard.player.PlaybackHandler;
