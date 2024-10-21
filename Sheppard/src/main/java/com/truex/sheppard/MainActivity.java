@@ -309,6 +309,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private void setupIntents() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // API 33 and up requires an explicit security flag.
             registerReceiver(hdmiStateChange, new IntentFilter(INTENT_HDMI), RECEIVER_EXPORTED);
             registerReceiver(audioWillBecomeNoisy, new IntentFilter(INTENT_NOISY_AUDIO), RECEIVER_EXPORTED);
         } else {
