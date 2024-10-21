@@ -66,4 +66,5 @@ fastlane/readme.md
 
 # DS Store
 .DS_Store
-.idea
+
+.idea/

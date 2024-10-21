@@ -1,10 +1,12 @@
-package com.truex.sheppard;
+package com.truex.ctv.referenceapp;
 
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -13,36 +15,45 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.common.util.Util;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DefaultDataSourceFactory;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.ConcatenatingMediaSource2;
+import androidx.media3.exoplayer.source.MediaSource;
+import androidx.media3.exoplayer.source.ProgressiveMediaSource;
+import androidx.media3.ui.PlayerView;
 
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.Player;
-import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
-import com.google.android.exoplayer2.source.MediaSource;
-import com.google.android.exoplayer2.source.ProgressiveMediaSource;
-import com.google.android.exoplayer2.ui.PlayerView;
-import com.google.android.exoplayer2.upstream.DataSource;
-import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
-import com.google.android.exoplayer2.util.Util;
-import com.truex.sheppard.ads.TruexAdManager;
-import com.truex.sheppard.player.DisplayMode;
-import com.truex.sheppard.player.PlaybackHandler;
-import com.truex.sheppard.player.PlaybackStateListener;
-import com.truex.sheppard.player.PlayerEventListener;
+import com.truex.ctv.referenceapp.R;
+import com.truex.ctv.referenceapp.ads.TruexAdManager;
+import com.truex.ctv.referenceapp.player.DisplayMode;
+import com.truex.ctv.referenceapp.player.PlaybackHandler;
+import com.truex.ctv.referenceapp.player.PlaybackStateListener;
+import com.truex.ctv.referenceapp.player.PlayerEventListener;
 
+@OptIn(markerClass = UnstableApi.class)
 public class MainActivity extends AppCompatActivity implements PlaybackStateListener, PlaybackHandler {
     private static final String CLASSTAG = MainActivity.class.getSimpleName();
     private static final String CONTENT_STREAM_URL = "http://media.truex.com/file_assets/2019-01-30/4ece0ae6-4e93-43a1-a873-936ccd3c7ede.mp4";
-    private static final String AD_URL_ONE = "http://media.truex.com/file_assets/2019-01-30/eb27eae5-c9da-4a9b-9420-a83c986baa0b.mp4";
-    private static final String AD_URL_TWO = "http://media.truex.com/file_assets/2019-01-30/7fe9da33-6b9e-446d-816d-e1aec51a3173.mp4";
-    private static final String AD_URL_THREE = "http://media.truex.com/file_assets/2019-01-30/742eb926-6ec0-48b4-b1e6-093cee334dd1.mp4";
+
+    private static final String[] adUrls = {
+            "http://media.truex.com/file_assets/2019-01-30/eb27eae5-c9da-4a9b-9420-a83c986baa0b.mp4",
+            "http://media.truex.com/file_assets/2019-01-30/7fe9da33-6b9e-446d-816d-e1aec51a3173.mp4",
+            "http://media.truex.com/file_assets/2019-01-30/742eb926-6ec0-48b4-b1e6-093cee334dd1.mp4"
+    };
+    private static final int[] adDurations = {30, 30, 32};
+
     private static final String INTENT_HDMI = "android.intent.action.HDMI_PLUGGED";
     private static final String INTENT_NOISY_AUDIO = "android.intent.action.ACTION_AUDIO_BECOMING_NOISY";
 
     // This player view is used to display a fake stream that mimics actual video content
     private PlayerView playerView;
+    private ExoPlayer player;
 
     // The data-source factory is used to build media-sources
     private DataSource.Factory dataSourceFactory;
@@ -82,8 +93,8 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         }
 
         // Resume video playback
-        if (playerView.getPlayer() != null && displayMode != DisplayMode.INTERACTIVE_AD) {
-            playerView.getPlayer().setPlayWhenReady(true);
+        if (player != null && displayMode != DisplayMode.INTERACTIVE_AD) {
+            player.setPlayWhenReady(true);
         }
     }
 
@@ -97,8 +108,8 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         }
 
         // Pause video playback
-        if (playerView.getPlayer() != null && displayMode != DisplayMode.INTERACTIVE_AD) {
-            playerView.getPlayer().setPlayWhenReady(false);
+        if (player != null && displayMode != DisplayMode.INTERACTIVE_AD) {
+            player.setPlayWhenReady(false);
         }
     }
 
@@ -154,7 +165,6 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     @Override
     public void resumeStream() {
         Log.d(CLASSTAG, "resumeStream");
-        Player player = playerView.getPlayer();
         if (player == null) return;
         playerView.setVisibility(View.VISIBLE);
         player.setPlayWhenReady(true);
@@ -168,7 +178,6 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
      */
     public void pauseStream() {
         Log.d(CLASSTAG, "pauseStream");
-        Player player = playerView.getPlayer();
         if (player == null) return;
         player.setPlayWhenReady(false);
         player.pause();
@@ -182,10 +191,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     @Override
     public void closeStream() {
         Log.d(CLASSTAG, "closeStream");
-        if (playerView.getPlayer() == null) {
-            return;
-        }
-        Player player = playerView.getPlayer();
+        if (player == null) return;
         playerView.setPlayer(null);
         player.release();
     }
@@ -199,7 +205,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
 
         // Return to the previous fragment
         FragmentManager fm = getSupportFragmentManager();
-        if (fm != null && fm.getBackStackEntryCount() > 0) {
+        if (fm.getBackStackEntryCount() > 0) {
             fm.popBackStack();
         }
     }
@@ -212,37 +218,31 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     @Override
     public void displayLinearAds() {
         Log.d(CLASSTAG, "displayLinearAds");
-        if (playerView.getPlayer() == null) {
-            return;
-        }
+        if (player == null) return;
 
         displayMode = DisplayMode.LINEAR_ADS;
 
-        MediaSource[] ads = new MediaSource[3];
+        ConcatenatingMediaSource2.Builder adBreakBuilder = new ConcatenatingMediaSource2.Builder();
 
-        String[] adUrls = {
-                AD_URL_ONE, AD_URL_TWO, AD_URL_THREE
-        };
-
-        for(int i = 0; i < ads.length; i++) {
-            Uri uri = Uri.parse(adUrls[i]);
-            MediaSource source = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(uri));
-            ads[i] = source;
+        // Show the fallback ad videos.
+        for (int i = 0; i < adUrls.length; i++) {
+            String adUrl = adUrls[i];
+            long adDuration = adDurations[i] * 1000;
+            MediaSource adSource = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(adUrl));
+            adBreakBuilder.add(adSource, adDuration);
         }
 
-        MediaSource adPod = new ConcatenatingMediaSource(ads);
-        ExoPlayer player = (ExoPlayer)playerView.getPlayer();
+        MediaSource adPod = adBreakBuilder.build();
         player.setPlayWhenReady(true);
         player.setMediaSource(adPod);
         player.prepare();
         playerView.setVisibility(View.VISIBLE);
+        playerView.hideController();
     }
 
     private void displayInteractiveAd() {
         Log.d(CLASSTAG, "displayInteractiveAds");
-        if (playerView.getPlayer() == null) {
-            return;
-        }
+        if (player == null) return;
 
         // Pause the stream and display a true[X] engagement
         pauseStream();
@@ -279,22 +279,19 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
 
     private void displayContentStream() {
         Log.d(CLASSTAG, "displayContentStream");
-        if (playerView.getPlayer() == null) {
-            return;
-        }
+        if (player == null) return;
 
         displayMode = DisplayMode.CONTENT_STREAM;
 
         Uri uri = Uri.parse(CONTENT_STREAM_URL);
         MediaSource source = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(uri));
-        ExoPlayer player = (ExoPlayer) playerView.getPlayer();
         player.setPlayWhenReady(true);
         player.setMediaSource(source);
         player.prepare();
     }
 
     private void setupExoPlayer() {
-        ExoPlayer player = new ExoPlayer.Builder(getApplicationContext()).build();
+        player = new ExoPlayer.Builder(getApplicationContext()).build();
 
         playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
@@ -305,13 +302,20 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
 
     private void setupDataSourceFactory() {
         String applicationName = getApplicationInfo().loadLabel(getPackageManager()).toString();
-        String userAgent = Util.getUserAgent(this, applicationName);
+        String userAgent = Util.getUserAgent(getApplicationContext(), applicationName);
         dataSourceFactory = new DefaultDataSourceFactory(this, userAgent, null);
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private void setupIntents() {
-        registerReceiver(hdmiStateChange, new IntentFilter(INTENT_HDMI));
-        registerReceiver(audioWillBecomeNoisy, new IntentFilter(INTENT_NOISY_AUDIO));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // API 33 and up requires an explicit security flag.
+            registerReceiver(hdmiStateChange, new IntentFilter(INTENT_HDMI), RECEIVER_EXPORTED);
+            registerReceiver(audioWillBecomeNoisy, new IntentFilter(INTENT_NOISY_AUDIO), RECEIVER_EXPORTED);
+        } else {
+            registerReceiver(hdmiStateChange, new IntentFilter(INTENT_HDMI));
+            registerReceiver(audioWillBecomeNoisy, new IntentFilter(INTENT_NOISY_AUDIO));
+        }
     }
 
     BroadcastReceiver hdmiStateChange = new BroadcastReceiver() {

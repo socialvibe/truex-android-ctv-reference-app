@@ -1,4 +1,4 @@
-package com.truex.sheppard.ads;
+package com.truex.ctv.referenceapp.ads;
 
 import android.content.Context;
 import android.os.Handler;
@@ -8,7 +8,7 @@ import android.view.ViewGroup;
 import com.truex.adrenderer.TruexAdEvent;
 import com.truex.adrenderer.TruexAdOptions;
 import com.truex.adrenderer.TruexAdRenderer;
-import com.truex.sheppard.player.PlaybackHandler;
+import com.truex.ctv.referenceapp.player.PlaybackHandler;
 
 import java.util.Map;
 import java.util.UUID;
