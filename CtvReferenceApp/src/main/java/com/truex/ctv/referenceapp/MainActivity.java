@@ -29,7 +29,7 @@ import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.ui.PlayerView;
 
-import com.truex.sheppard.R;
+import com.truex.ctv.referenceapp.R;
 import com.truex.ctv.referenceapp.ads.TruexAdManager;
 import com.truex.ctv.referenceapp.player.DisplayMode;
 import com.truex.ctv.referenceapp.player.PlaybackHandler;

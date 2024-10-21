@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdk 34
     defaultConfig {
-        applicationId "com.truex.sheppard"
+        applicationId "com.truex.ctv.referenceapp"
         minSdkVersion 28
         targetSdkVersion 34
         versionCode 1
@@ -31,7 +31,7 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    namespace 'com.truex.sheppard'
+    namespace 'com.truex.ctv.referenceapp'
 }
 
 repositories {
@@ -49,8 +49,8 @@ dependencies {
     // True[x] Ad Renderer (TAR) Dependency
     // Note: to refer to a local version of the TAR project, comment out the com.truex dependency
     // and uncomment the project one below.
-    implementation 'com.truex:TruexAdRenderer-Android:2.9.0'
-//    implementation project(':TruexAdRenderer')
+    //implementation 'com.truex:TruexAdRenderer-Android:2.9.0'
+    implementation project(':TruexAdRenderer')
 }
 
 // Needed to avoid duplicate Kotlin class errors

@@ -1,4 +1,4 @@
-# Sheppard
+# CTV Reference App
 
 ## Reference app for Android TV and Fire TV TAR (TruexAdRenderer) integration
 
@@ -17,13 +17,10 @@ at any time via the Menu key on the remote, or the M key in the emulator.
 
 ### Install Steps
 
-* Clone the `master` branch of the `Sheppard` repository
-    * `git clone https://github.com/socialvibe/Sheppard.git`
+* Clone the `master` branch of the `CTV Reference App` repository
+    * `git clone https://github.com/socialvibe/truex-android-ctv-reference-app`
 
-* Open Sheppard with Android Studio
-    * Open Android Studio
-    * Select `Open an existing Android Studio project` and select the Sheppard folder
-
+* Open the project with Android Studio
 
 ### Run Steps
 
