@@ -15,38 +15,31 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.FragmentManager;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DefaultDataSourceFactory;
 import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.exoplayer.source.ConcatenatingMediaSource2;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.ui.PlayerView;
+import androidx.media3.common.Player;
 
-import com.truex.ctv.referenceapp.R;
-import com.truex.ctv.referenceapp.ads.TruexAdManager;
-import com.truex.ctv.referenceapp.player.DisplayMode;
-import com.truex.ctv.referenceapp.player.PlaybackHandler;
+import com.truex.ctv.referenceapp.ads.AdPodManager;
+import com.truex.ctv.referenceapp.ads.SampleAdPodProvider;
 import com.truex.ctv.referenceapp.player.PlaybackStateListener;
 import com.truex.ctv.referenceapp.player.PlayerEventListener;
 
+import java.util.List;
+
 @OptIn(markerClass = UnstableApi.class)
-public class MainActivity extends AppCompatActivity implements PlaybackStateListener, PlaybackHandler {
+public class MainActivity extends AppCompatActivity implements PlaybackStateListener, AdPodManager.AdPodListener {
     private static final String CLASSTAG = MainActivity.class.getSimpleName();
     private static final String CONTENT_STREAM_URL = "http://media.truex.com/file_assets/2019-01-30/4ece0ae6-4e93-43a1-a873-936ccd3c7ede.mp4";
-
-    private static final String[] adUrls = {
-            "http://media.truex.com/file_assets/2019-01-30/eb27eae5-c9da-4a9b-9420-a83c986baa0b.mp4",
-            "http://media.truex.com/file_assets/2019-01-30/7fe9da33-6b9e-446d-816d-e1aec51a3173.mp4",
-            "http://media.truex.com/file_assets/2019-01-30/742eb926-6ec0-48b4-b1e6-093cee334dd1.mp4"
-    };
-    private static final int[] adDurations = {30, 30, 32};
 
     private static final String INTENT_HDMI = "android.intent.action.HDMI_PLUGGED";
     private static final String INTENT_NOISY_AUDIO = "android.intent.action.ACTION_AUDIO_BECOMING_NOISY";
@@ -57,12 +50,12 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
 
     // The data-source factory is used to build media-sources
     private DataSource.Factory dataSourceFactory;
+    
+    // Preloaded content source for faster startup
+    private MediaSource preloadedContentSource;
 
-    // We need to hold onto the ad manager so that the ad manager can listen for lifecycle events
-    private TruexAdManager truexAdManager;
-
-    // We need to identify whether or not the user is viewing ads or the content stream
-    private DisplayMode displayMode;
+    // Ad pod management
+    private AdPodManager adPodManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,15 +64,11 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_main);
 
-        // Set-up the video content player
         setupExoPlayer();
-
-        // Set-up the data-source factory
         setupDataSourceFactory();
-
         setupIntents(); // now we can be sensitive to HDMI cable changes
-
-        // Start the content stream
+        setupAdPodManager();
+        preloadContentStream();
         displayContentStream();
     }
 
@@ -87,13 +76,13 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     protected void onResume() {
         super.onResume();
 
-        // We need to inform the true[X] ad manager that the application has resumed
-        if (truexAdManager != null) {
-            truexAdManager.onResume();
+        // Forward to ad pod manager for any active ads
+        if (adPodManager != null) {
+            adPodManager.onResume();
         }
-
-        // Resume video playback
-        if (player != null && displayMode != DisplayMode.INTERACTIVE_AD) {
+        
+        // Resume video playback (but not during interactive ads)
+        if (player != null && (adPodManager == null || !adPodManager.isPlayingInteractiveAd())) {
             player.setPlayWhenReady(true);
         }
     }
@@ -102,13 +91,13 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     protected void onPause() {
         super.onPause();
 
-        // We need to inform the true[X] ad manager that the application has paused
-        if (truexAdManager != null) {
-            truexAdManager.onPause();
+        // Forward to ad pod manager for any active ads
+        if (adPodManager != null) {
+            adPodManager.onPause();
         }
-
-        // Pause video playback
-        if (player != null && displayMode != DisplayMode.INTERACTIVE_AD) {
+        
+        // Pause video playback (but not during interactive ads)
+        if (player != null && (adPodManager == null || !adPodManager.isPlayingInteractiveAd())) {
             player.setPlayWhenReady(false);
         }
     }
@@ -117,176 +106,64 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     protected void onStop() {
         super.onStop();
 
-        // We need to inform the true[X] ad manager that the application has stopped
-        if (truexAdManager != null) {
-            truexAdManager.onStop();
-        }
 
+        // Forward to ad pod manager for any active ads
+        if (adPodManager != null) {
+            adPodManager.onStop();
+        }
+        
         // Release the video player
-        closeStream();
+        closeVideoPlayer();
+    }
+    
+    private void closeVideoPlayer() {
+        if (player != null) {
+            playerView.setPlayer(null);
+            player.release();
+            player = null;
+        }
     }
 
-    /**
-     * Called when the player starts displaying the fake content stream
-     * Display the true[X] engagement
-     */
     public void onPlayerDidStart() {
-        Log.i(CLASSTAG, "onPlayerDidStart");
-        displayInteractiveAd();
+        adPodManager.startAdPod();
     }
 
-    /**
-     * Called when the media stream is resumed
-     */
     public void onPlayerDidResume() {
-        Log.d(CLASSTAG, "onPlayerDidResume");
     }
 
-    /**
-     * Called when the media stream is paused
-     */
     public void onPlayerDidPause() {
-        Log.d(CLASSTAG, "onPlayerDidPause");
     }
 
-    /**
-     * Called when the media stream is complete
-     */
     public void onPlayerDidComplete() {
-        if (displayMode == DisplayMode.LINEAR_ADS) {
-            displayContentStream();
-        }
-    }
-
-    /**
-     * This method resumes and displays the content stream
-     * Note: We call this method whenever a true[X] engagement is completed
-     */
-    @Override
-    public void resumeStream() {
-        Log.d(CLASSTAG, "resumeStream");
-        if (player == null) return;
-        playerView.setVisibility(View.VISIBLE);
-        player.setPlayWhenReady(true);
-        player.prepare();
-        player.play();
-    }
-
-    /**
-     * This method pauses and hides the fake content stream
-     * Note: We call this method whenever a true[X] engagement is completed
-     */
-    public void pauseStream() {
-        Log.d(CLASSTAG, "pauseStream");
-        if (player == null) return;
-        player.setPlayWhenReady(false);
-        player.pause();
-        playerView.setVisibility(View.GONE);
-    }
-
-    /**
-     * This method cancels the content stream and releases the video content player
-     * Note: We call this method when the application is stopped or when ExoPlayer encounters errors
-     */
-    @Override
-    public void closeStream() {
-        Log.d(CLASSTAG, "closeStream");
-        if (player == null) return;
-        playerView.setPlayer(null);
-        player.release();
-    }
-
-    /**
-     * This method closes the stream and then returns to the tag selection view
-     */
-    public void cancelStream() {
-        // Close the stream
-        closeStream();
-
-        // Return to the previous fragment
-        FragmentManager fm = getSupportFragmentManager();
-        if (fm.getBackStackEntryCount() > 0) {
-            fm.popBackStack();
-        }
-    }
-
-
-    /**
-     * This method cancels the content stream and begins playing a linear ad
-     * Note: We call this method whenever the user cancels an engagement without receiving credit
-     */
-    @Override
-    public void displayLinearAds() {
-        Log.d(CLASSTAG, "displayLinearAds");
-        if (player == null) return;
-
-        displayMode = DisplayMode.LINEAR_ADS;
-
-        ConcatenatingMediaSource2.Builder adBreakBuilder = new ConcatenatingMediaSource2.Builder();
-
-        // Show the fallback ad videos.
-        for (int i = 0; i < adUrls.length; i++) {
-            String adUrl = adUrls[i];
-            long adDuration = adDurations[i] * 1000;
-            MediaSource adSource = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(adUrl));
-            adBreakBuilder.add(adSource, adDuration);
-        }
-
-        MediaSource adPod = adBreakBuilder.build();
-        player.setPlayWhenReady(true);
-        player.setMediaSource(adPod);
-        player.prepare();
-        playerView.setVisibility(View.VISIBLE);
-        playerView.hideController();
-    }
-
-    private void displayInteractiveAd() {
-        Log.d(CLASSTAG, "displayInteractiveAds");
-        if (player == null) return;
-
-        // Pause the stream and display a true[X] engagement
-        pauseStream();
-
-        displayMode = DisplayMode.INTERACTIVE_AD;
-
-        // Start the true[X] engagement
-        ViewGroup viewGroup = (ViewGroup) this.findViewById(R.id.activity_main);
-        truexAdManager = new TruexAdManager(this, this);
-
-        // Normally the truex vast config url would come from the Ad SDK's VAST data for the ad.
-        // References the Hilton and Kung Fu Panda ads, not very typical.
-        //String vastConfigUrl = "https://qa-get.truex.com/81551ffa2b851abc5372ab9ed9f1f58adabe5203/vast/config?asnw=&flag=%2Bamcb%2Bemcr%2Bslcb%2Bvicb%2Baeti-exvt&fw_key_values=&metr=0&prof=g_as3_truex&ptgt=a&pvrn=&resp=vmap1&slid=fw_truex&ssnw=&vdur=&vprn=";
-
-        // This refers to an unrestricted, non-expiring, no-geo-blocked placement and test campaign.
-        // with a more modern test ad: https://ee.truex.com/ads/27287
-        // placement: https://ee.truex.com/admin/placements/1078
-        // campaign: https://ee.truex.com/campaigns/ab0f12462
-        String vastConfigUrl = "https://get.truex.com/88ac681ba8d0458e413dc22374194ab9f60b6664/vast/config?dimension_5=PI-2449-ctv-ad";
-
-        truexAdManager.startAd(viewGroup, vastConfigUrl);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_M) {
-            // For manual invocation.
-            displayInteractiveAd();
+            // For manual invocation - start ad pod sequence
+            adPodManager.startAdPod();
             return true;
         }
 
         return super.onKeyUp(keyCode, event);
     }
 
-    private void displayContentStream() {
-        Log.d(CLASSTAG, "displayContentStream");
-        if (player == null) return;
-
-        displayMode = DisplayMode.CONTENT_STREAM;
-
+    private void preloadContentStream() {
+        // Create and prepare content source in background
         Uri uri = Uri.parse(CONTENT_STREAM_URL);
-        MediaSource source = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(uri));
+        preloadedContentSource = new ProgressiveMediaSource.Factory(dataSourceFactory)
+            .createMediaSource(MediaItem.fromUri(uri));
+    }
+    
+    private void displayContentStream() {
+        if (player == null || preloadedContentSource == null) return;
+
+        // Restore player view visibility
+        playerView.setVisibility(View.VISIBLE);
+
+        // Use preloaded content source for faster startup
         player.setPlayWhenReady(true);
-        player.setMediaSource(source);
+        player.setMediaSource(preloadedContentSource);
         player.prepare();
     }
 
@@ -304,6 +181,12 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         String applicationName = getApplicationInfo().loadLabel(getPackageManager()).toString();
         String userAgent = Util.getUserAgent(getApplicationContext(), applicationName);
         dataSourceFactory = new DefaultDataSourceFactory(this, userAgent, null);
+    }
+
+    private void setupAdPodManager() {
+        ViewGroup adViewGroup = (ViewGroup) findViewById(R.id.activity_main);
+        adPodManager = new AdPodManager(this, this, dataSourceFactory, adViewGroup);
+        adPodManager.setAdPod(SampleAdPodProvider.createPrerollAdPod());
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -350,4 +233,66 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
             }
         }
     };
+
+    @Override
+    public void playMediaSource(MediaSource mediaSource, boolean notifyOfCompletion) {
+        if (player == null) return;
+
+        // Play the media source (individual ad or concatenated segment)
+        player.setPlayWhenReady(true);
+        player.setMediaSource(mediaSource);
+        player.prepare();
+        playerView.setVisibility(View.VISIBLE);
+        playerView.hideController();
+        
+        // Only listen for playback completion if requested (for concatenated segments)
+        if (notifyOfCompletion) {
+            player.addListener(new Player.Listener() {
+                @Override
+                public void onPlaybackStateChanged(int playbackState) {
+                    if (playbackState != Player.STATE_ENDED) {
+                        return;
+                    }
+
+                    player.removeListener(this);
+                    adPodManager.onPlaybackEnded();
+                }
+
+                @Override
+                public void onPositionDiscontinuity(@NonNull Player.PositionInfo oldPosition, @NonNull Player.PositionInfo newPosition, int reason) {
+                    if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
+                        adPodManager.onMediaItemCompleted();
+                    }
+                }
+            });
+        }
+    }
+    
+    @Override
+    public void controlPlayer(AdPodManager.PlayerAction action, long seekPositionMs) {
+        if (player == null) return;
+
+        switch (action) {
+            case PLAY:
+                playerView.hideController();
+                player.setPlayWhenReady(true);
+                playerView.setVisibility(View.VISIBLE);
+                break;
+            case SEEK_AND_PAUSE:
+                playerView.setVisibility(View.INVISIBLE);
+                player.seekTo(seekPositionMs);
+                player.setPlayWhenReady(false);
+                break;
+        }
+    }
+
+    @Override
+    public void onAdPodComplete() {
+        displayContentStream();
+    }
+    
+    @Override
+    public void onSkipToContent() {
+        displayContentStream();
+    }
 }

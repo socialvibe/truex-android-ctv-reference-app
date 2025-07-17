@@ -5,25 +5,33 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.ViewGroup;
 
+import com.truex.adrenderer.IEventEmitter;
 import com.truex.adrenderer.TruexAdEvent;
 import com.truex.adrenderer.TruexAdOptions;
 import com.truex.adrenderer.TruexAdRenderer;
-import com.truex.ctv.referenceapp.player.PlaybackHandler;
 
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * This class holds a reference to the true[X] ad renderer and handles all of the event handling
- * for the example integration application. This class interacts with the video player by resuming
- * the content when the engagement is complete.
+ * for the example integration application. This class interacts with the ad pod manager when
+ * the engagement is complete.
+ * 
+ * Supports both true[X] (interactive choice card with credit) and IDVx (interactive without credit) ad types.
  */
-public class TruexAdManager {
+public class InfillionAdManager {
     public static boolean supportUserCancelStream = true;
 
-    private static final String CLASSTAG = TruexAdManager.class.getSimpleName();
+    private static final String CLASSTAG = InfillionAdManager.class.getSimpleName();
 
-    private PlaybackHandler playbackHandler;
+    private IEventEmitter.IEventHandler adEventHandler = this::adEventHandler;
+
+    public interface CompletionCallback {
+        void onAdComplete(boolean receivedCredit);
+    }
+    
+    private CompletionCallback completionCallback;
     private boolean didReceiveCredit;
     private TruexAdRenderer truexAdRenderer;
 
@@ -35,8 +43,8 @@ public class TruexAdManager {
     private static final boolean showAdImmediately = true;
     private static final boolean showAdAfterLoad = !showAdImmediately;
 
-    public TruexAdManager(Context context, PlaybackHandler playbackHandler) {
-        this.playbackHandler = playbackHandler;
+    public InfillionAdManager(Context context, CompletionCallback completionCallback) {
+        this.completionCallback = completionCallback;
 
         didReceiveCredit = false;
 
@@ -44,7 +52,7 @@ public class TruexAdManager {
         truexAdRenderer = new TruexAdRenderer(context);
 
         // Set-up the event listeners
-        truexAdRenderer.addEventListener(null, this::adEventHandler); // listen to all events.
+        truexAdRenderer.addEventListener(null, adEventHandler); // listen to all events.
         if (supportUserCancelStream) {
             // We use an explicit listener to allow the tar to know user cancel stream is supported.
             truexAdRenderer.addEventListener(TruexAdEvent.USER_CANCEL_STREAM, this::onCancelStream);
@@ -52,20 +60,28 @@ public class TruexAdManager {
     }
 
     /**
-     * Start displaying the true[X] engagement
-     * @param viewGroup - the view group in which you would like to display the true[X] engagement
+     * Start displaying the Infillion engagement (true[X] or IDVx)
+     * @param viewGroup - the view group in which you would like to display the engagement
+     * @param vastConfigUrl - the VAST config URL for the ad
+     * @param adType - the type of ad (TRUEX or IDVX)
      */
-    public void startAd(ViewGroup viewGroup, String vastConfigUrl) {
+    public void startAd(ViewGroup viewGroup, String vastConfigUrl, AdType adType) {
+        Log.d(CLASSTAG, "startAd called - ViewGroup: " + viewGroup + ", URL: " + vastConfigUrl + ", Type: " + adType);
         this.viewGroup = viewGroup;
 
         TruexAdOptions options = new TruexAdOptions();
-        options.supportsUserCancelStream = true;
+        // Only true[X] ads support user cancel stream, IDVx ads should not
+        options.supportsUserCancelStream = (adType == AdType.TRUEX) && supportUserCancelStream;
         //options.userAdvertisingId = "1234"; // for testing.
         options.fallbackAdvertisingId = UUID.randomUUID().toString();
 
+        Log.d(CLASSTAG, "Calling truexAdRenderer.init()");
         truexAdRenderer.init(vastConfigUrl, options);
         if (showAdImmediately) {
+            Log.d(CLASSTAG, "Calling truexAdRenderer.start() with ViewGroup: " + viewGroup);
             truexAdRenderer.start(viewGroup);
+        } else {
+            Log.d(CLASSTAG, "showAdImmediately is false, not starting renderer yet");
         }
     }
 
@@ -89,6 +105,19 @@ public class TruexAdManager {
      */
     public void onStop() {
         truexAdRenderer.stop();
+    }
+    
+    /**
+     * Cleanup and destroy the TruexAdManager
+     * Should be called when the ad is complete or when disposing
+     */
+    public void destroy() {
+        Log.d(CLASSTAG, "Destroying TruexAdManager");
+        if (truexAdRenderer != null) {
+            truexAdRenderer.removeEventListener(null, adEventHandler);
+            truexAdRenderer = null;
+        }
+        completionCallback = null;
     }
 
     private void adEventHandler(TruexAdEvent event, Map<String, ?> data) {
@@ -119,7 +148,8 @@ public class TruexAdManager {
             case AD_ERROR: // An ad error has occurred, forcing its closure
             case AD_COMPLETED: // The ad has completed.
             case NO_ADS_AVAILABLE: // No ads are available, resume playback of fallback ads.
-                resumeVideo();
+                // Notify completion with credit status
+                completionCallback.onAdComplete(didReceiveCredit);
                 break;
 
             case AD_FREE_POD:
@@ -139,21 +169,6 @@ public class TruexAdManager {
     }
 
     /**
-     * This method should be called once the true[X] ad manager is done
-     */
-    private void resumeVideo() {
-        if (didReceiveCredit) {
-            // The user received true[ATTENTION] credit
-            // Resume the content stream (and skip any linear ads)
-            playbackHandler.resumeStream();
-        } else {
-            // The user did not receive credit
-            // Continue the content stream and display linear ads
-            playbackHandler.displayLinearAds();
-        }
-    }
-
-    /**
      * This method should be called if the user has opted to cancel the current stream
      */
     private void onCancelStream(TruexAdEvent event, Map<String, ?> data) {
@@ -162,7 +177,12 @@ public class TruexAdManager {
         } else {
             Log.i(CLASSTAG, "Cancelling stream without credit");
         }
-        playbackHandler.cancelStream();
+        if (completionCallback == null) {
+            return;
+        }
+
+        // For stream cancellation, we don't provide credit
+        completionCallback.onAdComplete(false);
     }
 
 }
