@@ -8,7 +8,6 @@ import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,15 +28,13 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.common.Player;
 
-import com.truex.ctv.referenceapp.ads.AdPodManager;
-import com.truex.ctv.referenceapp.ads.SampleAdPodProvider;
+import com.truex.ctv.referenceapp.ads.AdManager;
+import com.truex.ctv.referenceapp.ads.SampleAdProvider;
 import com.truex.ctv.referenceapp.player.PlaybackStateListener;
 import com.truex.ctv.referenceapp.player.PlayerEventListener;
 
-import java.util.List;
-
 @OptIn(markerClass = UnstableApi.class)
-public class MainActivity extends AppCompatActivity implements PlaybackStateListener, AdPodManager.AdPodListener {
+public class MainActivity extends AppCompatActivity implements PlaybackStateListener, AdManager.AdBreadListener {
     private static final String CLASSTAG = MainActivity.class.getSimpleName();
     private static final String CONTENT_STREAM_URL = "http://media.truex.com/file_assets/2019-01-30/4ece0ae6-4e93-43a1-a873-936ccd3c7ede.mp4";
 
@@ -55,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     private MediaSource preloadedContentSource;
 
     // Ad pod management
-    private AdPodManager adPodManager;
+    private AdManager adManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         setupExoPlayer();
         setupDataSourceFactory();
         setupIntents(); // now we can be sensitive to HDMI cable changes
-        setupAdPodManager();
+        setupAdBreadManager();
         preloadContentStream();
         displayContentStream();
     }
@@ -77,12 +74,12 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         super.onResume();
 
         // Forward to ad pod manager for any active ads
-        if (adPodManager != null) {
-            adPodManager.onResume();
+        if (adManager != null) {
+            adManager.onResume();
         }
         
         // Resume video playback (but not during interactive ads)
-        if (player != null && (adPodManager == null || !adPodManager.isPlayingInteractiveAd())) {
+        if (player != null && (adManager == null || !adManager.isPlayingInteractiveAd())) {
             player.setPlayWhenReady(true);
         }
     }
@@ -92,12 +89,12 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         super.onPause();
 
         // Forward to ad pod manager for any active ads
-        if (adPodManager != null) {
-            adPodManager.onPause();
+        if (adManager != null) {
+            adManager.onPause();
         }
         
         // Pause video playback (but not during interactive ads)
-        if (player != null && (adPodManager == null || !adPodManager.isPlayingInteractiveAd())) {
+        if (player != null && (adManager == null || !adManager.isPlayingInteractiveAd())) {
             player.setPlayWhenReady(false);
         }
     }
@@ -108,8 +105,8 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
 
 
         // Forward to ad pod manager for any active ads
-        if (adPodManager != null) {
-            adPodManager.onStop();
+        if (adManager != null) {
+            adManager.onStop();
         }
         
         // Release the video player
@@ -125,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     }
 
     public void onPlayerDidStart() {
-        adPodManager.startAdPod();
+        adManager.startAdBread();
     }
 
     public void onPlayerDidResume() {
@@ -141,7 +138,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_M) {
             // For manual invocation - start ad pod sequence
-            adPodManager.startAdPod();
+            adManager.startAdBread();
             return true;
         }
 
@@ -183,10 +180,10 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         dataSourceFactory = new DefaultDataSourceFactory(this, userAgent, null);
     }
 
-    private void setupAdPodManager() {
+    private void setupAdBreadManager() {
         ViewGroup adViewGroup = (ViewGroup) findViewById(R.id.activity_main);
-        adPodManager = new AdPodManager(this, this, dataSourceFactory, adViewGroup);
-        adPodManager.setAdPod(SampleAdPodProvider.createPrerollAdPod());
+        adManager = new AdManager(this, this, adViewGroup);
+        adManager.setCurrentAdBreak(SampleAdProvider.createPrerollAdBread());
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -235,41 +232,38 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     };
 
     @Override
-    public void playMediaSource(MediaSource mediaSource, boolean notifyOfCompletion) {
+    public void playMediaSource(MediaSource mediaSource) {
         if (player == null) return;
 
-        // Play the media source (individual ad or concatenated segment)
+        // Play the media source
         player.setPlayWhenReady(true);
         player.setMediaSource(mediaSource);
         player.prepare();
         playerView.setVisibility(View.VISIBLE);
         playerView.hideController();
-        
-        // Only listen for playback completion if requested (for concatenated segments)
-        if (notifyOfCompletion) {
-            player.addListener(new Player.Listener() {
-                @Override
-                public void onPlaybackStateChanged(int playbackState) {
-                    if (playbackState != Player.STATE_ENDED) {
-                        return;
-                    }
 
-                    player.removeListener(this);
-                    adPodManager.onPlaybackEnded();
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onPlaybackStateChanged(int playbackState) {
+                if (playbackState != Player.STATE_ENDED) {
+                    return;
                 }
 
-                @Override
-                public void onPositionDiscontinuity(@NonNull Player.PositionInfo oldPosition, @NonNull Player.PositionInfo newPosition, int reason) {
-                    if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
-                        adPodManager.onMediaItemCompleted();
-                    }
+                player.removeListener(this);
+                adManager.onPlaybackEnded();
+            }
+
+            @Override
+            public void onPositionDiscontinuity(@NonNull Player.PositionInfo oldPosition, @NonNull Player.PositionInfo newPosition, int reason) {
+                if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
+                    adManager.onMediaItemCompleted();
                 }
-            });
-        }
+            }
+        });
     }
     
     @Override
-    public void controlPlayer(AdPodManager.PlayerAction action, long seekPositionMs) {
+    public void controlPlayer(AdManager.PlayerAction action, long seekPositionMs) {
         if (player == null) return;
 
         switch (action) {
@@ -287,7 +281,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     }
 
     @Override
-    public void onAdPodComplete() {
+    public void onAdBreadComplete() {
         displayContentStream();
     }
     
