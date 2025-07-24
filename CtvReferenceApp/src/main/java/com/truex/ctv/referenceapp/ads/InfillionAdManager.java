@@ -112,7 +112,7 @@ public class InfillionAdManager {
      * Should be called when the ad is complete or when disposing
      */
     public void destroy() {
-        Log.d(CLASSTAG, "Destroying TruexAdManager");
+        Log.d(CLASSTAG, "Destroying InfillionAdManager");
         if (truexAdRenderer != null) {
             truexAdRenderer.removeEventListener(null, adEventHandler);
             truexAdRenderer = null;
