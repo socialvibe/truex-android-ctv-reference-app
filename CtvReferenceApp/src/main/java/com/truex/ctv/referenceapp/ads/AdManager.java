@@ -18,17 +18,17 @@ public class AdManager {
     private List<Ad> ads;
     private MediaSource mediaSource;
     private int currentAdIndexInSegment;
-    private AdBreadListener listener;
+    private AdBreakListener listener;
     private Context context;
     private InfillionAdManager infillionAdManager;
     private ViewGroup adViewGroup;
     private android.os.Handler failsafeHandler;
     private Runnable failsafeRunnable;
     
-    public interface AdBreadListener {
+    public interface AdBreakListener {
         void playMediaSource(MediaSource mediaSource);
         void controlPlayer(PlayerAction action, long seekPositionMs);
-        void onAdBreadComplete();
+        void onAdBreakComplete();
         void onSkipToContent();
     }
     
@@ -37,7 +37,7 @@ public class AdManager {
         SEEK_AND_PAUSE
     }
     
-    public AdManager(Context context, AdBreadListener listener, ViewGroup adViewGroup) {
+    public AdManager(Context context, AdBreakListener listener, ViewGroup adViewGroup) {
         this.context = context;
         this.listener = listener;
         this.adViewGroup = adViewGroup;
@@ -77,7 +77,7 @@ public class AdManager {
         this.mediaSource = createMediaSource(ads);
     }
     
-    public void startAdBread() {
+    public void startAdBreak() {
         // Clean up any existing InfillionAdManager before starting new ad pod
         cleanupInfillionAdManager();
 
@@ -95,7 +95,7 @@ public class AdManager {
     // You should call this from outside when a concatenated
     // segment finishes playing
     public void onPlaybackEnded() {
-        listener.onAdBreadComplete();
+        listener.onAdBreakComplete();
     }
 
     // You should call this from outside when the player
@@ -123,7 +123,7 @@ public class AdManager {
         // Move to next ad in concatenated segment
         currentAdIndexInSegment++;
         if (currentAdIndexInSegment >= ads.size()) {
-            listener.onAdBreadComplete();
+            listener.onAdBreakComplete();
         }
         else {
             // show the renderer if the new ad is Infillion

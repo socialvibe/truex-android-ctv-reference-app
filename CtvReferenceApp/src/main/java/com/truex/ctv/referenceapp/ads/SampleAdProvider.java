@@ -6,7 +6,7 @@ import java.util.List;
 public class SampleAdProvider {
 
     // Sample preroll ad pod with mixed ad types
-    public static List<Ad> createPrerollAdBread() {
+    public static List<Ad> createPrerollAdBreak() {
         List<Ad> ads = new ArrayList<>();
 
         // Position 1: true[X] ad (must be first)

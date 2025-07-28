@@ -34,7 +34,7 @@ import com.truex.ctv.referenceapp.player.PlaybackStateListener;
 import com.truex.ctv.referenceapp.player.PlayerEventListener;
 
 @OptIn(markerClass = UnstableApi.class)
-public class MainActivity extends AppCompatActivity implements PlaybackStateListener, AdManager.AdBreadListener {
+public class MainActivity extends AppCompatActivity implements PlaybackStateListener, AdManager.AdBreakListener {
     private static final String CLASSTAG = MainActivity.class.getSimpleName();
     private static final String CONTENT_STREAM_URL = "http://media.truex.com/file_assets/2019-01-30/4ece0ae6-4e93-43a1-a873-936ccd3c7ede.mp4";
 
@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         setupExoPlayer();
         setupDataSourceFactory();
         setupIntents(); // now we can be sensitive to HDMI cable changes
-        setupAdBreadManager();
+        setupAdBreakManager();
         preloadContentStream();
         displayContentStream();
     }
@@ -122,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     }
 
     public void onPlayerDidStart() {
-        adManager.startAdBread();
+        adManager.startAdBreak();
     }
 
     public void onPlayerDidResume() {
@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_M) {
             // For manual invocation - start ad pod sequence
-            adManager.startAdBread();
+            adManager.startAdBreak();
             return true;
         }
 
@@ -180,10 +180,10 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
         dataSourceFactory = new DefaultDataSourceFactory(this, userAgent, null);
     }
 
-    private void setupAdBreadManager() {
+    private void setupAdBreakManager() {
         ViewGroup adViewGroup = (ViewGroup) findViewById(R.id.activity_main);
         adManager = new AdManager(this, this, adViewGroup);
-        adManager.setCurrentAdBreak(SampleAdProvider.createPrerollAdBread());
+        adManager.setCurrentAdBreak(SampleAdProvider.createPrerollAdBreak());
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -281,7 +281,7 @@ public class MainActivity extends AppCompatActivity implements PlaybackStateList
     }
 
     @Override
-    public void onAdBreadComplete() {
+    public void onAdBreakComplete() {
         displayContentStream();
     }
     
