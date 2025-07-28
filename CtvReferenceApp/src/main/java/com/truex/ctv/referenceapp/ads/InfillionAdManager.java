@@ -108,7 +108,7 @@ public class InfillionAdManager {
     }
     
     /**
-     * Cleanup and destroy the TruexAdManager
+     * Cleanup and destroy the InfillionAdManager
      * Should be called when the ad is complete or when disposing
      */
     public void destroy() {
