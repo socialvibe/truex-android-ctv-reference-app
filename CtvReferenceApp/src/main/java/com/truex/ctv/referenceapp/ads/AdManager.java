@@ -116,7 +116,7 @@ public class AdManager {
         return null;
     }
 
-    // Note that his method does not drive the ads - it  only:
+    // Note that this method does not drive the ads - it  only:
     //  1. advances the internal state to reflect the progress made by the player
     //  2. shows the Infillion overlay if an Infillion ad is playing
     private void moveToNextAd() {
