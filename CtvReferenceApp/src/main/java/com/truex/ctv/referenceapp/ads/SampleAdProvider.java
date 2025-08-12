@@ -13,7 +13,7 @@ public class SampleAdProvider {
         ads.add(new Ad(
             "trueX",
             "https://media.truex.com/m/video/truexloadingplaceholder-30s.mp4",
-            "https://get.truex.com/88ac681ba8d0458e413dc22374194ab9f60b6664/vast/config?dimension_5=PI-2449-ctv-ad&ip=108.213.126.254",
+            "https://get.truex.com/88ac681ba8d0458e413dc22374194ab9f60b6664/vast/config?dimension_5=PI-2449-ctv-ad",
             30,
             1,
             "truex-preroll"
@@ -23,9 +23,7 @@ public class SampleAdProvider {
         ads.add(new Ad(
             "IDVx",
             "https://qa-media.truex.com/m/video/truexloadingplaceholder-30s.mp4",
-            //"https://qa-get.truex.com/dc2b568f1da7c8698e3c0e14f99414247db0b4fa/vast/config?ip=108.213.126.253",
-            //"https://qa-get.truex.com/745a152e9fcad6248eaa4ef6ae818b4462f9fcb6/vast/config?ip=108.213.126.254",
-            "https://s3.us-east-1.amazonaws.com/stash.truex.com/sample-tags/deleteme.json?ip=108.213.126.253",
+            "https://qa-get.truex.com/eb9f752aeab71d71dd129da48ed98206e53a96dd/vast/config?",
             30,
             2,
             "idvx-preroll"
