@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdk 34
+    compileSdk 35
     defaultConfig {
         applicationId "com.truex.ctv.referenceapp"
         minSdkVersion 28
-        targetSdkVersion 34
+        targetSdkVersion 35
         versionCode 1
         versionName "2.0"
     }
@@ -49,7 +49,7 @@ dependencies {
     // True[x] Ad Renderer (TAR) Dependency
     // Note: to refer to a local version of the TAR project, comment out the com.truex dependency
     // and uncomment the project one below.
-    implementation 'com.truex:TruexAdRenderer-Android:2.9.0'
+    implementation 'com.truex:TruexAdRenderer-Android:2.10.4'
 //    implementation project(':TruexAdRenderer')
 }
 
